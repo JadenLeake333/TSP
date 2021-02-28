@@ -27,40 +27,68 @@ def calculate_distance(data):
                                                 'distance':distance,
                                                 'flag': 1
                                              })
-    with open ('data.json', 'w') as data:
-        json.dump(dist_dict,data,indent=4)
+    #with open ('data.json', 'w') as data:
+    #    json.dump(dist_dict,data,indent=4)
     return dist_dict
 
-def solve_problem(data,length,start):
-    permutations = [p for p in itertools.permutations(range(0,length+1))]
-    #print(permutations)
+def solve_problem(data,length,start,cycle):
     distances = {}
     distances['sums'] = []
     first_sum = 0
+    if cycle != 'True':
+        permutations = [p for p in itertools.permutations(range(0,length+1))]
+        for i in range(len(permutations)):
+            first_sum = 0
+            if permutations[i][0] != start:
+                continue
+            else:
+                for j in range(len(permutations[i])-1):
+                    for k in range(len(data['distances'])):
+                        if permutations[i][j] == data['distances'][k]['source'] and permutations[i][j+1] == data['distances'][k]['target'] or \
+                           permutations[i][j] == data['distances'][k]['target'] and permutations[i][j+1] == data['distances'][k]['source']:
+                            first_sum += data['distances'][k]['distance']
+                distances['sums'].append({
+                                        'order':list(permutations[i]),
+                                        'sum': first_sum
+                })
 
-    for i in range(len(permutations)):
-        first_sum = 0
-        if permutations[i][0] != start:
-            continue
-        else:
-            for j in range(len(permutations[i])-1):
-                for k in range(len(data['distances'])):
-                    if permutations[i][j] == data['distances'][k]['source'] and permutations[i][j+1] == data['distances'][k]['target'] or permutations[i][j] == data['distances'][k]['target'] and permutations[i][j+1] == data['distances'][k]['source']:
-                        first_sum += data['distances'][k]['distance']
-            distances['sums'].append({
-                                    'order':list(permutations[i]),
-                                    'sum': first_sum
-            })
+        least_sum = distances['sums'][0]['sum']
+        order = 0
+        for i in distances['sums']:
+            if i['sum'] <  least_sum:
+                least_sum = i['sum']
+                order = i['order']
 
-    least_sum = distances['sums'][0]['sum']
-    order = 0
-    for i in distances['sums']:
-        if i['sum'] <  least_sum:
-            least_sum = i['sum']
-            order = i['order']
+        print("The shortest path is %d units, order:"%least_sum,order)
+        return order
+    else:
+        permutations = [list(p) for p in itertools.permutations(range(0,length+1))]
+        for i in range(len(permutations)):
+            permutations[i].append(permutations[i][0])
+        for i in range(len(permutations)):
+            first_sum = 0
+            if permutations[i][0] != start:
+                continue
+            else:
+                for j in range(len(permutations[i])-1):
+                    for k in range(len(data['distances'])):
+                        if permutations[i][j] == data['distances'][k]['source'] and permutations[i][j+1] == data['distances'][k]['target'] or \
+                           permutations[i][j] == data['distances'][k]['target'] and permutations[i][j+1] == data['distances'][k]['source']:
+                            first_sum += data['distances'][k]['distance']
+                distances['sums'].append({
+                                        'order':list(permutations[i]),
+                                        'sum': first_sum
+                })
 
-    print("The shortest path is %d units, order:"%least_sum,order)
-    return order
+        least_sum = distances['sums'][0]['sum']
+        order = 0
+        for i in distances['sums']:
+            if i['sum'] < least_sum:
+                least_sum = i['sum']
+                order = i['order']
+
+        print("The shortest path cycle is %d units, order:"%least_sum,order)
+        return order
 
 def nearest_neighbor(data,length,start):
     distances = {}
@@ -68,20 +96,27 @@ def nearest_neighbor(data,length,start):
     distances['path'].append({'source':[]})
     used_idx = []
     sums = 0
+
     first_sum = 2147483647 #Int limit for max value, hard to find first index
     next_point = -1
     # First pass to get the starting point
-    if start != 0:
+    if start == length:
+        for i in range(length):
+            for j in range(len(data['distances'])):
+                if data['distances'][j]['target'] == start and data['distances'][j]['distance'] < first_sum:
+                    next_point = data['distances'][j]['source']
+                    first_sum = data['distances'][j]['distance']
+    elif start != 0:
         for i in range(len(data['distances'])):
             if data['distances'][i]['source'] == start and data['distances'][i]['distance'] < first_sum:
                 next_point = data['distances'][i]['target']
-                first_sum = data['distances'][i]['distance']
+                first_sum = data['distances'][i]['distance']  
     else:
         for i in range(len(data['distances'])):
             if data['distances'][i]['source'] == start and data['distances'][i]['distance'] < first_sum:
                 next_point = data['distances'][i]['target']
                 first_sum = data['distances'][i]['distance']
-    sums += first_sum
+
     used_idx.append(start)
     while len(used_idx) < length+1:
         first_sum = 2147483647
@@ -89,50 +124,26 @@ def nearest_neighbor(data,length,start):
             if data['distances'][i]['target'] == next_point and data['distances'][i]['distance'] < first_sum and data['distances'][i]['source'] not in used_idx:
                 new_point = data['distances'][i]['source']
                 first_sum = data['distances'][i]['distance']
-                sums += first_sum
         for i in range(len(data['distances'])): #Check the next point as source
             if data['distances'][i]['source'] == next_point and data['distances'][i]['distance'] < first_sum and data['distances'][i]['target'] not in used_idx:
                 new_point = data['distances'][i]['target']
                 first_sum = data['distances'][i]['distance']
-                sums += first_sum
+                
         prev = next_point
         next_point = new_point
         used_idx.append(prev)
-    print("Nearest neighbor starting from %d:\nDistance is: %d"%(start,sums), used_idx)
+    print("Nearest neighbor starting from %d:"%(start), used_idx)
     return used_idx
-
-'''           
-def brute_force(data,length,start):
-    limit = math.factorial(length-1)
-    distances = {}
-    distances['path'] = []
-    used_idx = []
-    first_sum = 2147483647 #Int limit for max value, hard to find first index
-    next_point = -1
-    if start != 0:
-        for i in range(len(data['distances'])):
-            if data['distances'][i]['source'] == start and data['distances'][i]['distance'] < first_sum:
-                next_point = data['distances'][i]['target']
-                first_sum = data['distances'][i]['distance']
-    else:
-        for i in range(len(data['distances'])):
-            if data['distances'][i]['source'] == start and data['distances'][i]['distance'] < first_sum:
-                next_point = data['distances'][i]['target']
-                first_sum = data['distances'][i]['distance']
-
-    while used_idx <= limit:
-        for i in range(length+1):
-'''       
 
 if __name__ == "__main__":
     try:
         jsonfile = sys.argv[1]
         start = int(sys.argv[2])
-        visualize = sys.argv[3]
-
+        cycle = sys.argv[3]
+        visualize = sys.argv[4]
     except:
         jsonfile = None
-        print("Enter a .json file and bool value")
+        print("Enter a .json file and two bool value")
         quit(0)
     
     if jsonfile != None:
@@ -142,10 +153,21 @@ if __name__ == "__main__":
         except:
             print("Please enter a valid .json filename or make sure you have input a valid json")
             quit()
+
+        if start < 0 or start > data['num']: # out of range
+            print("Please enter a valid starting position")
+            quit()
+        if data['num'] == 1: #arbitrary
+            print("Shortest distance is order is [0,1]")
+            quit()
+        if data['num'] == 0: #arbitrary
+            print("Need more than 1 point to get distance to")
+            quit()
+
         distances = calculate_distance(data)
         nearest_neighbor(distances,data['num'],start)
-        shortest_path = solve_problem(distances,data['num'],start)
-        if visualize == "True":
-            initialize_board(data,shortest_path)
+        shortest_path = solve_problem(distances,data['num'],start,cycle)
+        if visualize == 'True':
+            initialize_board(data,shortest_path,cycle)
         
         
